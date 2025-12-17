@@ -4,6 +4,8 @@ import type {
   CreateFolderRequest,
   UploadFileResponse,
   DownloadStatusResponse,
+  ShareFileRequest,
+  ShareFileResponse,
 } from "@/lib/types";
 
 export const fileService = {
@@ -107,5 +109,21 @@ export const fileService = {
 
   async deleteFile(fileId: string): Promise<void> {
     return api.delete<void>(`/api/v1/files/${fileId}`);
+  },
+
+  async shareFile(fileId: string, data: ShareFileRequest): Promise<ShareFileResponse> {
+    return api.post<ShareFileResponse>(`/api/v1/files/${fileId}/share`, data);
+  },
+
+  async getSharedWithMe(): Promise<FileItem[]> {
+    return api.get<FileItem[]>("/api/v1/files/shared-with-me");
+  },
+
+  async getFileShares(fileId: string): Promise<ShareFileResponse[]> {
+    return api.get<ShareFileResponse[]>(`/api/v1/files/${fileId}/shares`);
+  },
+
+  async removeShare(fileId: string, email: string): Promise<void> {
+    return api.delete<void>(`/api/v1/files/${fileId}/share/${encodeURIComponent(email)}`);
   },
 };

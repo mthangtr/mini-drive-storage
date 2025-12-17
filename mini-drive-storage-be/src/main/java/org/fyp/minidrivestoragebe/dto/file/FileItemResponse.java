@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.fyp.minidrivestoragebe.entity.FileItem;
 import org.fyp.minidrivestoragebe.enums.FileType;
+import org.fyp.minidrivestoragebe.enums.PermissionLevel;
 
 import java.time.LocalDateTime;
 
@@ -26,6 +27,8 @@ public class FileItemResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Boolean canEdit; // Permission flag
+    private Boolean shared; // Is this file shared with current user?
+    private PermissionLevel permissionLevel; // User's permission level
 
     public static FileItemResponse from(FileItem fileItem, Boolean canEdit) {
         return FileItemResponse.builder()

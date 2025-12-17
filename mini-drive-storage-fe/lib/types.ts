@@ -55,6 +55,11 @@ export enum DownloadStatus {
   FAILED = "FAILED"
 }
 
+export enum PermissionLevel {
+  VIEW = "VIEW",
+  EDIT = "EDIT"
+}
+
 export interface FileItem {
   id: string;
   name: string;
@@ -68,6 +73,8 @@ export interface FileItem {
   createdAt: string;
   updatedAt: string;
   canEdit: boolean;
+  shared?: boolean;
+  permissionLevel?: PermissionLevel;
 }
 
 export interface CreateFolderRequest {
@@ -86,4 +93,18 @@ export interface DownloadStatusResponse {
   status: DownloadStatus;
   downloadUrl: string | null;
   message: string;
+}
+
+export interface ShareFileRequest {
+  email: string;
+  permission: PermissionLevel;
+}
+
+export interface ShareFileResponse {
+  id: string;
+  fileId: string;
+  fileName: string;
+  sharedWithEmail: string;
+  permission: PermissionLevel;
+  sharedAt: string;
 }

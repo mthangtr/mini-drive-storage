@@ -1,23 +1,30 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { FileText, Folder, MoreVertical, Upload, FolderPlus, Download, Trash2 } from "lucide-react";
+import { FileText, Folder, MoreVertical, Upload, FolderPlus, Download, Trash2, Share2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fileService } from "@/lib/api/files";
 import { FileItem, FileType } from "@/lib/types";
 import { ApiError } from "@/lib/api/client";
+import ShareDialog from "@/components/share-dialog";
+
+type ViewMode = "my-drive" | "shared-with-me";
 
 export default function DashboardPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>("my-drive");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [shareDialogFile, setShareDialogFile] = useState<FileItem | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadFiles = async () => {
     try {
       setIsLoading(true);
-      const data = await fileService.listFiles();
+      const data = viewMode === "my-drive" 
+        ? await fileService.listFiles()
+        : await fileService.getSharedWithMe();
       setFiles(data);
       setError("");
     } catch (err) {
@@ -33,7 +40,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadFiles();
-  }, []);
+  }, [viewMode]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
@@ -144,9 +151,40 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Tabs */}
+      <div className="border-b">
+        <div className="flex gap-6">
+          <button
+            onClick={() => setViewMode("my-drive")}
+            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+              viewMode === "my-drive"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Folder className="inline h-4 w-4 mr-2" />
+            My Drive
+          </button>
+          <button
+            onClick={() => setViewMode("shared-with-me")}
+            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+              viewMode === "shared-with-me"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Users className="inline h-4 w-4 mr-2" />
+            Shared with me
+          </button>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">My Drive</h1>
-        <div className="flex items-center gap-2">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          {viewMode === "my-drive" ? "My Drive" : "Shared with me"}
+        </h1>
+        {viewMode === "my-drive" && (
+          <div className="flex items-center gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -169,6 +207,7 @@ export default function DashboardPage() {
             New Folder
           </Button>
         </div>
+        )}
       </div>
 
       {error && (
@@ -212,6 +251,11 @@ export default function DashboardPage() {
                   <span className="text-sm font-medium text-foreground/70 group-hover:text-foreground">
                     {file.name}
                   </span>
+                  {file.shared && (
+                    <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+                      Shared
+                    </span>
+                  )}
                 </div>
                 <div className="col-span-2 text-sm text-muted-foreground">
                   {file.ownerName}
@@ -223,6 +267,17 @@ export default function DashboardPage() {
                   {formatSize(file.size)}
                 </div>
                 <div className="col-span-1 flex justify-end gap-1">
+                  {viewMode === "my-drive" && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => setShareDialogFile(file)}
+                      title="Share"
+                    >
+                      <Share2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -232,20 +287,31 @@ export default function DashboardPage() {
                   >
                     <Download className="h-4 w-4 text-muted-foreground" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => handleDelete(file.id)}
-                    title="Delete"
-                  >
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                  </Button>
+                  {file.canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleDelete(file.id)}
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {/* Share Dialog */}
+      {shareDialogFile && (
+        <ShareDialog
+          fileId={shareDialogFile.id}
+          fileName={shareDialogFile.name}
+          onClose={() => setShareDialogFile(null)}
+        />
       )}
     </div>
   );

@@ -34,6 +34,7 @@ public class FileService {
     private final FilePermissionRepository filePermissionRepository;
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
+    private final EmailService emailService;
 
     /**
      * Upload multiple files
@@ -343,5 +344,202 @@ public class FileService {
     private FileItem getFileItemById(String id) {
         return fileItemRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("File or folder not found"));
+    }
+
+    /**
+     * Share a file or folder with another user
+     */
+    @Transactional
+    public ShareFileResponse shareFile(String fileId, ShareFileRequest request, String ownerEmail) {
+        User owner = getUserByEmail(ownerEmail);
+        FileItem fileItem = getFileItemById(fileId);
+        
+        // Check if user has permission to share (must be owner or have EDIT permission)
+        checkWritePermission(fileItem, owner);
+        
+        // Find recipient user
+        User recipient = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("User with email " + request.getEmail() + " not found"));
+        
+        // Check if sharing with self
+        if (owner.getId().equals(recipient.getId())) {
+            throw new BadRequestException("Cannot share with yourself");
+        }
+        
+        // Check if permission already exists
+        FilePermission existingPermission = filePermissionRepository
+                .findByFileItemAndUser(fileItem, recipient)
+                .orElse(null);
+        
+        if (existingPermission != null) {
+            // Update existing permission
+            existingPermission.setPermissionLevel(request.getPermission());
+            existingPermission = filePermissionRepository.save(existingPermission);
+            
+            log.info("Updated permission for {} on {} to {}", recipient.getEmail(), fileItem.getName(), request.getPermission());
+        } else {
+            // Create new permission
+            existingPermission = FilePermission.builder()
+                    .fileItem(fileItem)
+                    .user(recipient)
+                    .permissionLevel(request.getPermission())
+                    .build();
+            existingPermission = filePermissionRepository.save(existingPermission);
+            
+            log.info("Created permission for {} on {} with {}", recipient.getEmail(), fileItem.getName(), request.getPermission());
+        }
+        
+        // If folder, apply permission recursively to all children
+        if (fileItem.getType() == FileType.FOLDER) {
+            applyPermissionsRecursively(fileItem, recipient, request.getPermission());
+        }
+        
+        // Send email notification asynchronously
+        emailService.sendShareNotification(
+                recipient.getEmail(),
+                owner.getEmail(),
+                fileItem.getName(),
+                request.getPermission().name()
+        );
+        
+        return ShareFileResponse.builder()
+                .id(existingPermission.getId())
+                .fileId(fileItem.getId())
+                .fileName(fileItem.getName())
+                .sharedWithEmail(recipient.getEmail())
+                .permission(existingPermission.getPermissionLevel())
+                .sharedAt(existingPermission.getSharedAt())
+                .build();
+    }
+    
+    /**
+     * Apply permissions recursively to all children in a folder
+     */
+    private void applyPermissionsRecursively(FileItem folder, User recipient, PermissionLevel permissionLevel) {
+        List<FileItem> children = fileItemRepository.findByParentAndDeletedFalse(folder);
+        
+        for (FileItem child : children) {
+            // Create or update permission for this child
+            FilePermission childPermission = filePermissionRepository
+                    .findByFileItemAndUser(child, recipient)
+                    .orElse(null);
+            
+            if (childPermission != null) {
+                childPermission.setPermissionLevel(permissionLevel);
+                filePermissionRepository.save(childPermission);
+            } else {
+                childPermission = FilePermission.builder()
+                        .fileItem(child)
+                        .user(recipient)
+                        .permissionLevel(permissionLevel)
+                        .build();
+                filePermissionRepository.save(childPermission);
+            }
+            
+            // If child is also a folder, recurse
+            if (child.getType() == FileType.FOLDER) {
+                applyPermissionsRecursively(child, recipient, permissionLevel);
+            }
+        }
+    }
+    
+    /**
+     * Get list of files shared with current user
+     */
+    @Transactional(readOnly = true)
+    public List<FileItemResponse> getSharedWithMe(String userEmail) {
+        User user = getUserByEmail(userEmail);
+        
+        // Get all permissions for this user
+        List<FilePermission> permissions = filePermissionRepository.findByUser(user);
+        
+        return permissions.stream()
+                .map(permission -> {
+                    FileItem fileItem = permission.getFileItem();
+                    // Only include non-deleted files
+                    if (!fileItem.isDeleted()) {
+                        FileItemResponse response = FileItemResponse.from(fileItem, false);
+                        // Mark as shared
+                        response.setShared(true);
+                        response.setPermissionLevel(permission.getPermissionLevel());
+                        return response;
+                    }
+                    return null;
+                })
+                .filter(item -> item != null)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get list of users a file is shared with
+     */
+    @Transactional(readOnly = true)
+    public List<ShareFileResponse> getFileShares(String fileId, String userEmail) {
+        User user = getUserByEmail(userEmail);
+        FileItem fileItem = getFileItemById(fileId);
+        
+        // Only owner can view who the file is shared with
+        if (!fileItem.getOwner().getId().equals(user.getId())) {
+            throw new UnauthorizedException("Only the owner can view file shares");
+        }
+        
+        List<FilePermission> permissions = filePermissionRepository.findByFileItemId(fileId);
+        
+        return permissions.stream()
+                .map(permission -> ShareFileResponse.builder()
+                        .id(permission.getId())
+                        .fileId(fileItem.getId())
+                        .fileName(fileItem.getName())
+                        .sharedWithEmail(permission.getUser().getEmail())
+                        .permission(permission.getPermissionLevel())
+                        .sharedAt(permission.getSharedAt())
+                        .build())
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Remove share (revoke permission)
+     */
+    @Transactional
+    public void removeShare(String fileId, String recipientEmail, String ownerEmail) {
+        User owner = getUserByEmail(ownerEmail);
+        FileItem fileItem = getFileItemById(fileId);
+        
+        // Only owner can remove shares
+        if (!fileItem.getOwner().getId().equals(owner.getId())) {
+            throw new UnauthorizedException("Only the owner can remove shares");
+        }
+        
+        User recipient = getUserByEmail(recipientEmail);
+        
+        // Find and delete permission
+        FilePermission permission = filePermissionRepository
+                .findByFileItemAndUser(fileItem, recipient)
+                .orElseThrow(() -> new ResourceNotFoundException("Share not found"));
+        
+        filePermissionRepository.delete(permission);
+        
+        // If folder, remove permissions recursively
+        if (fileItem.getType() == FileType.FOLDER) {
+            removePermissionsRecursively(fileItem, recipient);
+        }
+        
+        log.info("Removed share for {} on {}", recipientEmail, fileItem.getName());
+    }
+    
+    /**
+     * Remove permissions recursively from all children
+     */
+    private void removePermissionsRecursively(FileItem folder, User recipient) {
+        List<FileItem> children = fileItemRepository.findByParentAndDeletedFalse(folder);
+        
+        for (FileItem child : children) {
+            filePermissionRepository.findByFileItemAndUser(child, recipient)
+                    .ifPresent(filePermissionRepository::delete);
+            
+            if (child.getType() == FileType.FOLDER) {
+                removePermissionsRecursively(child, recipient);
+            }
+        }
     }
 }

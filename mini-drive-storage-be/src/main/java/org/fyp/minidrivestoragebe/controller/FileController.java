@@ -193,4 +193,65 @@ public class FileController {
                         "attachment; filename=\"" + zipFile.getName() + "\"")
                 .body(resource);
     }
+
+    /**
+     * Share file or folder with another user
+     * POST /api/v1/files/{id}/share
+     */
+    @PostMapping("/{id}/share")
+    public ResponseEntity<ApiResponse<ShareFileResponse>> shareFile(
+            @PathVariable String id,
+            @Valid @RequestBody ShareFileRequest request,
+            Authentication authentication) {
+        
+        String userEmail = authentication.getName();
+        ShareFileResponse response = fileService.shareFile(id, request, userEmail);
+        
+        return ResponseEntity.ok(ApiResponse.success("File shared successfully", response));
+    }
+    
+    /**
+     * Get list of files shared with current user
+     * GET /api/v1/files/shared-with-me
+     */
+    @GetMapping("/shared-with-me")
+    public ResponseEntity<ApiResponse<List<FileItemResponse>>> getSharedWithMe(
+            Authentication authentication) {
+        
+        String userEmail = authentication.getName();
+        List<FileItemResponse> files = fileService.getSharedWithMe(userEmail);
+        
+        return ResponseEntity.ok(ApiResponse.success("Shared files retrieved successfully", files));
+    }
+    
+    /**
+     * Get list of users a file is shared with
+     * GET /api/v1/files/{id}/shares
+     */
+    @GetMapping("/{id}/shares")
+    public ResponseEntity<ApiResponse<List<ShareFileResponse>>> getFileShares(
+            @PathVariable String id,
+            Authentication authentication) {
+        
+        String userEmail = authentication.getName();
+        List<ShareFileResponse> shares = fileService.getFileShares(id, userEmail);
+        
+        return ResponseEntity.ok(ApiResponse.success("File shares retrieved successfully", shares));
+    }
+    
+    /**
+     * Remove share (revoke permission)
+     * DELETE /api/v1/files/{id}/share/{email}
+     */
+    @DeleteMapping("/{id}/share/{email}")
+    public ResponseEntity<ApiResponse<Void>> removeShare(
+            @PathVariable String id,
+            @PathVariable String email,
+            Authentication authentication) {
+        
+        String userEmail = authentication.getName();
+        fileService.removeShare(id, email, userEmail);
+        
+        return ResponseEntity.ok(ApiResponse.success("Share removed successfully", null));
+    }
 }
