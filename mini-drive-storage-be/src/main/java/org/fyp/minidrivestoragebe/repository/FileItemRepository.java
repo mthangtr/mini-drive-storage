@@ -1,6 +1,7 @@
 package org.fyp.minidrivestoragebe.repository;
 
 import org.fyp.minidrivestoragebe.entity.FileItem;
+import org.fyp.minidrivestoragebe.entity.User;
 import org.fyp.minidrivestoragebe.enums.FileType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +20,14 @@ public interface FileItemRepository extends JpaRepository<FileItem, String> {
     
     // Find root level items (no parent)
     List<FileItem> findByOwnerIdAndParentIsNullAndDeletedFalse(String ownerId);
+    
+    List<FileItem> findByOwnerAndParentIsNullAndDeletedFalse(User owner);
+    
+    List<FileItem> findByParentAndDeletedFalse(FileItem parent);
+    
+    List<FileItem> findByOwnerAndNameContainingIgnoreCaseAndDeletedFalse(User owner, String name);
+    
+    boolean existsByNameAndParentAndOwnerAndDeletedFalse(String name, FileItem parent, User owner);
     
     // Search files by name
     @Query("SELECT f FROM FileItem f WHERE f.owner.id = :ownerId AND f.deleted = false " +

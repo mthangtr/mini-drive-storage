@@ -1,6 +1,8 @@
 package org.fyp.minidrivestoragebe.repository;
 
+import org.fyp.minidrivestoragebe.entity.FileItem;
 import org.fyp.minidrivestoragebe.entity.FilePermission;
+import org.fyp.minidrivestoragebe.entity.User;
 import org.fyp.minidrivestoragebe.enums.PermissionLevel;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -21,6 +23,12 @@ public interface FilePermissionRepository extends JpaRepository<FilePermission, 
     
     // Find all permissions for user
     List<FilePermission> findByUserId(String userId);
+    
+    List<FilePermission> findByUser(User user);
+    
+    Optional<FilePermission> findByFileItemAndUser(FileItem fileItem, User user);
+    
+    boolean existsByFileItemAndUser(FileItem fileItem, User user);
     
     // Check if permission exists
     boolean existsByFileItemIdAndUserId(String fileItemId, String userId);
