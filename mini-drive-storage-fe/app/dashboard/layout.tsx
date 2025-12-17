@@ -1,13 +1,39 @@
+"use client";
+
 import Link from "next/link";
-import { HardDrive, Share2, Trash2, Search, Plus, User } from "lucide-react";
+import { HardDrive, Share2, Trash2, Search, Plus, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/lib/auth-context";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { user, logout, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login");
+    }
+  }, [user, isLoading, router]);
+
+  if (isLoading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  const storagePercentage = (user.storageUsed / user.storageQuota) * 100;
+  const storageUsedGB = (user.storageUsed / (1024 * 1024 * 1024)).toFixed(2);
+  const storageQuotaGB = (user.storageQuota / (1024 * 1024 * 1024)).toFixed(0);
+
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
@@ -50,15 +76,31 @@ export default function DashboardLayout({
           </Link>
         </nav>
 
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border space-y-2">
           <div className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-muted-foreground">
             <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-              <div className="h-full bg-primary w-[45%]" />
+              <div 
+                className="h-full bg-primary transition-all" 
+                style={{ width: `${Math.min(storagePercentage, 100)}%` }}
+              />
             </div>
           </div>
           <div className="px-3 text-xs text-muted-foreground">
-            4.5 GB of 10 GB used
+            {storageUsedGB} GB of {storageQuotaGB} GB used
           </div>
+          <div className="px-3 pt-2 border-t">
+            <div className="text-xs font-medium text-foreground">{user.fullName}</div>
+            <div className="text-xs text-muted-foreground">{user.email}</div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2"
+            onClick={logout}
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </Button>
         </div>
       </aside>
 
