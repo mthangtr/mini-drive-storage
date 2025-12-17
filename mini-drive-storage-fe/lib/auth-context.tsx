@@ -22,11 +22,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check if user is already logged in
-    const currentUser = authService.getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser);
-    }
-    setIsLoading(false);
+    const initAuth = () => {
+      const currentUser = authService.getCurrentUser();
+      if (currentUser) {
+        setUser(currentUser);
+      }
+      setIsLoading(false);
+    };
+    initAuth();
   }, []);
 
   const login = async (data: LoginRequest) => {

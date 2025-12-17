@@ -1,8 +1,21 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { FileText, Folder, MoreVertical, Upload, FolderPlus, Download, Trash2, Share2, Users } from "lucide-react";
+import { FileText, Folder, Upload, FolderPlus, Download, Trash2, Share2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { fileService } from "@/lib/api/files";
 import { FileItem, FileType } from "@/lib/types";
 import { ApiError } from "@/lib/api/client";
@@ -14,9 +27,9 @@ export default function DashboardPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("my-drive");
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [shareDialogFile, setShareDialogFile] = useState<FileItem | null>(null);
+  const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadFiles = async () => {
@@ -26,12 +39,11 @@ export default function DashboardPage() {
         ? await fileService.listFiles()
         : await fileService.getSharedWithMe();
       setFiles(data);
-      setError("");
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        toast.error(err.message);
       } else {
-        setError("Failed to load files");
+        toast.error("Failed to load files");
       }
     } finally {
       setIsLoading(false);
@@ -40,6 +52,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadFiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,14 +63,15 @@ export default function DashboardPage() {
       setIsUploading(true);
       await fileService.uploadFiles(Array.from(selectedFiles));
       await loadFiles(); // Reload files
+      toast.success("Files uploaded successfully");
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        toast.error(err.message);
       } else {
-        setError("Failed to upload files");
+        toast.error("Failed to upload files");
       }
     } finally {
       setIsUploading(false);
@@ -71,11 +85,12 @@ export default function DashboardPage() {
     try {
       await fileService.createFolder({ name: folderName });
       await loadFiles();
+      toast.success("Folder created successfully");
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        toast.error(err.message);
       } else {
-        setError("Failed to create folder");
+        toast.error("Failed to create folder");
       }
     }
   };
@@ -100,36 +115,39 @@ export default function DashboardPage() {
               await fileService.downloadZipFile(requestId, file.name);
             } else if (status.status === "FAILED" || attempts >= maxAttempts) {
               clearInterval(pollInterval);
-              setError("Download failed");
+              toast.error("Download failed");
             }
             attempts++;
-          } catch (err) {
+          } catch {
             clearInterval(pollInterval);
-            setError("Download failed");
+            toast.error("Download failed");
           }
         }, 2000);
       }
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        toast.error(err.message);
       } else {
-        setError("Failed to download");
+        toast.error("Failed to download");
       }
     }
   };
 
-  const handleDelete = async (fileId: string) => {
-    if (!confirm("Are you sure you want to delete this item?")) return;
+  const confirmDelete = async () => {
+    if (!deleteFileId) return;
 
     try {
-      await fileService.deleteFile(fileId);
+      await fileService.deleteFile(deleteFileId);
       await loadFiles();
+      toast.success("Item deleted successfully");
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        toast.error(err.message);
       } else {
-        setError("Failed to delete");
+        toast.error("Failed to delete");
       }
+    } finally {
+      setDeleteFileId(null);
     }
   };
 
@@ -151,40 +169,25 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Tabs */}
-      <div className="border-b">
-        <div className="flex gap-6">
-          <button
-            onClick={() => setViewMode("my-drive")}
-            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-              viewMode === "my-drive"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Folder className="inline h-4 w-4 mr-2" />
+      <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)}>
+        <TabsList>
+          <TabsTrigger value="my-drive">
+            <Folder className="h-4 w-4" />
             My Drive
-          </button>
-          <button
-            onClick={() => setViewMode("shared-with-me")}
-            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-              viewMode === "shared-with-me"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Users className="inline h-4 w-4 mr-2" />
+          </TabsTrigger>
+          <TabsTrigger value="shared-with-me">
+            <Users className="h-4 w-4" />
             Shared with me
-          </button>
-        </div>
-      </div>
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          {viewMode === "my-drive" ? "My Drive" : "Shared with me"}
-        </h1>
-        {viewMode === "my-drive" && (
-          <div className="flex items-center gap-2">
+        <TabsContent value={viewMode} className="mt-6">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {viewMode === "my-drive" ? "My Drive" : "Shared with me"}
+            </h1>
+            {viewMode === "my-drive" && (
+              <div className="flex items-center gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -202,32 +205,27 @@ export default function DashboardPage() {
             <Upload className="h-4 w-4 mr-2" />
             {isUploading ? "Uploading..." : "Upload"}
           </Button>
-          <Button variant="outline" size="sm" onClick={handleCreateFolder}>
-            <FolderPlus className="h-4 w-4 mr-2" />
-            New Folder
-          </Button>
-        </div>
-        )}
-      </div>
+            <Button variant="outline" size="sm" onClick={handleCreateFolder}>
+              <FolderPlus className="h-4 w-4 mr-2" />
+              New Folder
+            </Button>
+          </div>
+            )}
+          </div>
 
-      {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      )}
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-muted-foreground">Loading...</div>
-        </div>
-      ) : files.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Folder className="h-16 w-16 text-muted-foreground/50 mb-4" />
-          <h3 className="text-lg font-medium mb-2">No files yet</h3>
-          <p className="text-sm text-muted-foreground mb-4">Upload files or create folders to get started</p>
-        </div>
-      ) : (
-        <div className="rounded-lg border bg-card shadow-sm">
+              {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-muted-foreground">Loading...</div>
+            </div>
+          ) : files.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Folder className="h-16 w-16 text-muted-foreground/50 mb-4" />
+              <h3 className="text-lg font-medium mb-2">No files yet</h3>
+              <p className="text-sm text-muted-foreground mb-4">Upload files or create folders to get started</p>
+            </div>
+          ) : (
+            <div className="rounded-lg border bg-card shadow-sm">
           <div className="grid grid-cols-12 gap-4 p-4 border-b text-sm font-medium text-muted-foreground">
             <div className="col-span-6">Name</div>
             <div className="col-span-2">Owner</div>
@@ -252,9 +250,9 @@ export default function DashboardPage() {
                     {file.name}
                   </span>
                   {file.shared && (
-                    <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">
+                    <Badge variant="secondary" className="ml-2">
                       Shared
-                    </span>
+                    </Badge>
                   )}
                 </div>
                 <div className="col-span-2 text-sm text-muted-foreground">
@@ -292,18 +290,20 @@ export default function DashboardPage() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleDelete(file.id)}
+                      onClick={() => setDeleteFileId(file.id)}
                       title="Delete"
                     >
                       <Trash2 className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   )}
                 </div>
-              </div>
+                </div>
             ))}
+            </div>
           </div>
-        </div>
-      )}
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Share Dialog */}
       {shareDialogFile && (
@@ -313,6 +313,22 @@ export default function DashboardPage() {
           onClose={() => setShareDialogFile(null)}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteFileId} onOpenChange={(open) => !open && setDeleteFileId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the item.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

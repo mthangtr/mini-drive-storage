@@ -20,8 +20,8 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  const headers: HeadersInit = {
-    ...options.headers,
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
   };
 
   if (token) {

@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -457,7 +458,7 @@ public class FileService {
                 .map(permission -> {
                     FileItem fileItem = permission.getFileItem();
                     // Only include non-deleted files
-                    if (!fileItem.isDeleted()) {
+                    if (!fileItem.getDeleted()) {
                         FileItemResponse response = FileItemResponse.from(fileItem, false);
                         // Mark as shared
                         response.setShared(true);
@@ -466,7 +467,7 @@ public class FileService {
                     }
                     return null;
                 })
-                .filter(item -> item != null)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
     

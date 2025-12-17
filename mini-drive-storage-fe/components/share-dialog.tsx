@@ -1,10 +1,27 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Mail, Trash2 } from "lucide-react";
+import { Mail, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -12,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 import { fileService } from "@/lib/api/files";
 import { PermissionLevel, ShareFileResponse } from "@/lib/types";
 import { ApiError } from "@/lib/api/client";
@@ -28,10 +46,11 @@ export default function ShareDialog({ fileId, fileName, onClose }: ShareDialogPr
   const [shares, setShares] = useState<ShareFileResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingShares, setIsLoadingShares] = useState(true);
-  const [error, setError] = useState("");
+  const [removeShareEmail, setRemoveShareEmail] = useState<string | null>(null);
 
   useEffect(() => {
     loadShares();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileId]);
 
   const loadShares = async () => {
@@ -41,7 +60,7 @@ export default function ShareDialog({ fileId, fileName, onClose }: ShareDialogPr
       setShares(data);
     } catch (err) {
       if (err instanceof ApiError) {
-        console.error("Failed to load shares:", err.message);
+        toast.error("Failed to load shares: " + err.message);
       }
     } finally {
       setIsLoadingShares(false);
@@ -52,58 +71,53 @@ export default function ShareDialog({ fileId, fileName, onClose }: ShareDialogPr
     e.preventDefault();
     
     if (!email.trim()) {
-      setError("Email is required");
+      toast.error("Email is required");
       return;
     }
 
     try {
       setIsLoading(true);
-      setError("");
       await fileService.shareFile(fileId, { email: email.trim(), permission });
       setEmail("");
       await loadShares();
+      toast.success(`File shared with ${email.trim()}`);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        toast.error(err.message);
       } else {
-        setError("Failed to share file");
+        toast.error("Failed to share file");
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRemoveShare = async (shareEmail: string) => {
-    if (!confirm(`Remove access for ${shareEmail}?`)) return;
+  const confirmRemoveShare = async () => {
+    if (!removeShareEmail) return;
 
     try {
-      await fileService.removeShare(fileId, shareEmail);
+      await fileService.removeShare(fileId, removeShareEmail);
       await loadShares();
+      toast.success(`Access removed for ${removeShareEmail}`);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        toast.error(err.message);
       } else {
-        setError("Failed to remove share");
+        toast.error("Failed to remove share");
       }
+    } finally {
+      setRemoveShareEmail(null);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">Share "{fileName}"</h2>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Share &ldquo;{fileName}&rdquo;</DialogTitle>
+        </DialogHeader>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="space-y-4">
           {/* Share Form */}
           <form onSubmit={handleShare} className="space-y-3">
             <div>
@@ -139,12 +153,6 @@ export default function ShareDialog({ fileId, fileName, onClose }: ShareDialogPr
               </Select>
             </div>
 
-            {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                {error}
-              </div>
-            )}
-
             <Button type="submit" disabled={isLoading} className="w-full">
               {isLoading ? "Sharing..." : "Share"}
             </Button>
@@ -173,24 +181,42 @@ export default function ShareDialog({ fileId, fileName, onClose }: ShareDialogPr
                   >
                     <div className="flex-1">
                       <div className="text-sm font-medium">{share.sharedWithEmail}</div>
-                      <div className="text-xs text-gray-500">
+                      <Badge variant="outline" className="mt-1">
                         {share.permission === PermissionLevel.VIEW ? "View only" : "Can edit"}
-                      </div>
+                      </Badge>
                     </div>
-                    <button
-                      onClick={() => handleRemoveShare(share.sharedWithEmail)}
-                      className="p-1 hover:bg-red-50 rounded text-red-600 transition"
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setRemoveShareEmail(share.sharedWithEmail)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       title="Remove access"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+
+      {/* Remove Share Confirmation */}
+      <AlertDialog open={!!removeShareEmail} onOpenChange={(open) => !open && setRemoveShareEmail(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove access?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove access for {removeShareEmail}? They will no longer be able to view or edit this file.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemoveShare}>Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Dialog>
   );
 }
