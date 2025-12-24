@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -149,19 +150,19 @@ export default function SharedWithMePage() {
 
           {/* Filter Dropdown */}
           <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Filter className="h-4 w-4" />
-                Filters
-                {hasActiveFilters && (
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                    {[filterType].filter(Boolean).length}
-                  </Badge>
-                )}
-              </Button>
+            <DropdownMenuTrigger className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3">
+              <Filter className="h-4 w-4" />
+              Filters
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {[filterType].filter(Boolean).length}
+                </Badge>
+              )}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel>Filter by</DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Filter by</DropdownMenuLabel>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
               
               <div className="p-2 space-y-3">
