@@ -70,6 +70,7 @@ export interface FileItem {
   ownerId: string;
   ownerName: string;
   deleted: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
   canEdit: boolean;

@@ -1,10 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { FileText, Folder, Upload, FolderPlus, Download, Trash2, Share2, Users, ChevronRight, Home } from "lucide-react";
+import { FileText, Folder, Upload, FolderPlus, Download, Trash2, Share2, Search, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,30 +29,40 @@ import { FileItem, FileType } from "@/lib/types";
 import { ApiError } from "@/lib/api/client";
 import ShareDialog from "@/components/share-dialog";
 
-type ViewMode = "my-drive" | "shared-with-me";
-
-interface FolderPath {
-  id: string | null;
-  name: string;
-}
-
 export default function DashboardPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>("my-drive");
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [shareDialogFile, setShareDialogFile] = useState<FileItem | null>(null);
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
-  const [folderPath, setFolderPath] = useState<FolderPath[]>([{ id: null, name: "My Drive" }]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<string | null>(null);
+  const [filterSizeMin, setFilterSizeMin] = useState<number | null>(null);
+  const [filterSizeMax, setFilterSizeMax] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadFiles = async () => {
     try {
       setIsLoading(true);
-      const data = viewMode === "my-drive" 
-        ? await fileService.listFiles({ parentId: currentFolderId || undefined })
-        : await fileService.getSharedWithMe();
+      const params: {
+        q?: string;
+        parentId?: string;
+        type?: string;
+        fromSize?: number;
+        toSize?: number;
+      } = {};
+      
+      if (searchQuery) {
+        params.q = searchQuery;
+      } else if (currentFolderId) {
+        params.parentId = currentFolderId;
+      }
+      if (filterType) params.type = filterType;
+      if (filterSizeMin !== null) params.fromSize = filterSizeMin;
+      if (filterSizeMax !== null) params.toSize = filterSizeMax;
+      
+      const data = await fileService.listFiles(params);
       setFiles(data);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -60,29 +78,21 @@ export default function DashboardPage() {
   useEffect(() => {
     loadFiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, currentFolderId]);
+  }, [currentFolderId, searchQuery, filterType, filterSizeMin, filterSizeMax]);
 
   const navigateToFolder = useCallback((folder: FileItem) => {
     if (folder.type !== FileType.FOLDER) return;
     setCurrentFolderId(folder.id);
-    setFolderPath(prev => [...prev, { id: folder.id, name: folder.name }]);
   }, []);
 
-  const navigateToBreadcrumb = useCallback((index: number) => {
-    const targetFolder = folderPath[index];
-    setCurrentFolderId(targetFolder.id);
-    setFolderPath(folderPath.slice(0, index + 1));
-  }, [folderPath]);
+  const clearFilters = () => {
+    setSearchQuery("");
+    setFilterType(null);
+    setFilterSizeMin(null);
+    setFilterSizeMax(null);
+  };
 
-  const resetNavigation = useCallback(() => {
-    setCurrentFolderId(null);
-    setFolderPath([{ id: null, name: "My Drive" }]);
-  }, []);
-
-  useEffect(() => {
-    // Reset navigation when switching views
-    resetNavigation();
-  }, [viewMode, resetNavigation]);
+  const hasActiveFilters = searchQuery || filterType || filterSizeMin !== null || filterSizeMax !== null;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
@@ -201,67 +211,173 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)}>
-        <TabsList>
-          <TabsTrigger value="my-drive">
-            <Folder className="h-4 w-4" />
-            My Drive
-          </TabsTrigger>
-          <TabsTrigger value="shared-with-me">
-            <Users className="h-4 w-4" />
-            Shared with me
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value={viewMode} className="mt-6">
-          {/* Breadcrumb Navigation */}
-          {viewMode === "my-drive" && folderPath.length > 0 && (
-            <div className="flex items-center gap-2 mb-4 text-sm">
-              <Home className="h-4 w-4 text-muted-foreground" />
-              {folderPath.map((folder, index) => (
-                <div key={folder.id || "root"} className="flex items-center gap-2">
-                  {index > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                  <button
-                    onClick={() => navigateToBreadcrumb(index)}
-                    className="hover:text-foreground text-muted-foreground transition-colors"
-                    disabled={index === folderPath.length - 1}
+      <div className="space-y-4 mb-6">
+            {/* Search and Actions Row */}
+            <div className="flex items-center gap-3">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search files and folders..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-10"
+                />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setSearchQuery("")}
                   >
-                    {folder.name}
-                  </button>
-                </div>
-              ))}
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Filter Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-3 h-9 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors">
+                  <Filter className="h-4 w-4" />
+                  Filters
+                  {hasActiveFilters && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                      {[filterType, filterSizeMin !== null, filterSizeMax !== null].filter(Boolean).length}
+                    </Badge>
+                  )}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel>Filter by</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  
+                  <div className="p-2 space-y-3">
+                    {/* Type Filter */}
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-2 block">Type</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          variant={filterType === "FILE" ? "default" : "outline"}
+                          size="sm"
+                          className="w-full text-xs"
+                          onClick={() => setFilterType(filterType === "FILE" ? null : "FILE")}
+                        >
+                          Files
+                        </Button>
+                        <Button
+                          variant={filterType === "FOLDER" ? "default" : "outline"}
+                          size="sm"
+                          className="w-full text-xs"
+                          onClick={() => setFilterType(filterType === "FOLDER" ? null : "FOLDER")}
+                        >
+                          Folders
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Size Filter */}
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground mb-2 block">Size (MB)</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Input
+                            type="number"
+                            placeholder="Min"
+                            value={filterSizeMin !== null ? filterSizeMin / (1024 * 1024) : ""}
+                            onChange={(e) => setFilterSizeMin(e.target.value ? parseFloat(e.target.value) * 1024 * 1024 : null)}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div>
+                          <Input
+                            type="number"
+                            placeholder="Max"
+                            value={filterSizeMax !== null ? filterSizeMax / (1024 * 1024) : ""}
+                            onChange={(e) => setFilterSizeMax(e.target.value ? parseFloat(e.target.value) * 1024 * 1024 : null)}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {hasActiveFilters && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={clearFilters} className="text-xs">
+                        <X className="h-3 w-3 mr-2" />
+                        Clear all filters
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Upload/Create Actions */}
+              {!searchQuery && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {isUploading ? "Uploading..." : "Upload"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleCreateFolder}>
+                    <FolderPlus className="h-4 w-4 mr-2" />
+                    New Folder
+                  </Button>
+                </>
+              )}
             </div>
-          )}
+
+            {/* Active Filters Display */}
+            {hasActiveFilters && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted-foreground">Active filters:</span>
+                {searchQuery && (
+                  <Badge variant="secondary" className="gap-1">
+                    Search: {searchQuery}
+                    <button onClick={() => setSearchQuery("")} className="ml-1 hover:text-foreground">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {filterType && (
+                  <Badge variant="secondary" className="gap-1">
+                    Type: {filterType}
+                    <button onClick={() => setFilterType(null)} className="ml-1 hover:text-foreground">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+                {(filterSizeMin !== null || filterSizeMax !== null) && (
+                  <Badge variant="secondary" className="gap-1">
+                    Size: {filterSizeMin !== null ? `≥${(filterSizeMin / (1024 * 1024)).toFixed(1)}MB` : ""} 
+                    {filterSizeMin !== null && filterSizeMax !== null ? " & " : ""}
+                    {filterSizeMax !== null ? `≤${(filterSizeMax / (1024 * 1024)).toFixed(1)}MB` : ""}
+                    <button onClick={() => { setFilterSizeMin(null); setFilterSizeMax(null); }} className="ml-1 hover:text-foreground">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              {viewMode === "my-drive" ? "My Drive" : "Shared with me"}
+              {searchQuery ? `Search results for "${searchQuery}"` : "My Drive"}
             </h1>
-            {viewMode === "my-drive" && (
-              <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={handleFileUpload}
-            className="hidden"
-            id="file-upload"
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            {isUploading ? "Uploading..." : "Upload"}
-          </Button>
-            <Button variant="outline" size="sm" onClick={handleCreateFolder}>
-              <FolderPlus className="h-4 w-4 mr-2" />
-              New Folder
-            </Button>
-          </div>
-            )}
           </div>
 
 
@@ -290,7 +406,7 @@ export default function DashboardPage() {
               <div
                 key={file.id}
                 className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/50 transition-colors group cursor-pointer"
-                onClick={() => file.type === FileType.FOLDER && viewMode === "my-drive" && navigateToFolder(file)}
+                onClick={() => file.type === FileType.FOLDER && navigateToFolder(file)}
               >
                 <div className="col-span-6 flex items-center gap-3">
                   {file.type === FileType.FOLDER ? (
@@ -317,17 +433,15 @@ export default function DashboardPage() {
                   {formatSize(file.size)}
                 </div>
                 <div className="col-span-1 flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                  {viewMode === "my-drive" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => setShareDialogFile(file)}
-                      title="Share"
-                    >
-                      <Share2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => setShareDialogFile(file)}
+                    title="Share"
+                  >
+                    <Share2 className="h-4 w-4 text-muted-foreground" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -349,13 +463,11 @@ export default function DashboardPage() {
                     </Button>
                   )}
                 </div>
-                </div>
+              </div>
             ))}
-            </div>
           </div>
-          )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
 
       {/* Share Dialog */}
       {shareDialogFile && (

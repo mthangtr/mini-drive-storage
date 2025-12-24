@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { HardDrive, Share2, Trash2, Search, Plus, User, LogOut, BarChart3 } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { HardDrive, Share2, Trash2, LogOut, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { analyticsService } from "@/lib/api/analytics";
 import type { UsageStatsResponse } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({
   children,
@@ -17,6 +18,7 @@ export default function DashboardLayout({
 }) {
   const { user, logout, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [stats, setStats] = useState<UsageStatsResponse | null>(null);
 
   useEffect(() => {
@@ -57,32 +59,40 @@ export default function DashboardLayout({
           </div>
           MiniDrive
         </div>
-        
-        <div className="px-4 py-2">
-          <Button variant="outline" className="w-full justify-start gap-2 shadow-sm">
-            <Plus className="h-4 w-4" />
-            New
-          </Button>
-        </div>
 
         <nav className="flex-1 px-4 py-4 space-y-1">
           <Link
             href="/dashboard"
-            className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md bg-accent text-accent-foreground"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+              pathname === "/dashboard"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}
           >
             <HardDrive className="h-4 w-4" />
             My Drive
           </Link>
           <Link
             href="/dashboard/shared"
-            className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+              pathname === "/dashboard/shared"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}
           >
             <Share2 className="h-4 w-4" />
             Shared with me
           </Link>
           <Link
             href="/dashboard/trash"
-            className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+              pathname === "/dashboard/trash"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}
           >
             <Trash2 className="h-4 w-4" />
             Trash
@@ -146,25 +156,6 @@ export default function DashboardLayout({
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="h-16 border-b border-border flex items-center justify-between px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-          <div className="flex-1 max-w-2xl">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search in Drive"
-                className="w-full pl-9 bg-muted"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-4 ml-4">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <User className="h-5 w-5 text-muted-foreground" />
-            </Button>
-          </div>
-        </header>
-
         {/* Page Content */}
         <main className="flex-1 overflow-auto p-6">
           {children}
