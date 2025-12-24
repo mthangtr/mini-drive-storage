@@ -5,6 +5,7 @@ import org.fyp.minidrivestoragebe.dto.auth.LoginRequest;
 import org.fyp.minidrivestoragebe.dto.auth.RegisterRequest;
 import org.fyp.minidrivestoragebe.entity.User;
 import org.fyp.minidrivestoragebe.exception.BadRequestException;
+import org.fyp.minidrivestoragebe.exception.UnauthorizedException;
 import org.fyp.minidrivestoragebe.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -75,7 +76,7 @@ class AuthServiceTest {
             user.setId("new-user-id");
             return user;
         });
-        when(jwtUtil.generateToken(any())).thenReturn("jwt-token");
+        when(jwtUtil.generateToken(anyString(), any())).thenReturn("jwt-token");
 
         // When
         AuthResponse response = authService.register(request);
@@ -117,7 +118,7 @@ class AuthServiceTest {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(null);
         when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(testUser));
-        when(jwtUtil.generateToken(any())).thenReturn("jwt-token");
+        when(jwtUtil.generateToken(anyString(), any())).thenReturn("jwt-token");
 
         // When
         AuthResponse response = authService.login(request);
@@ -142,7 +143,7 @@ class AuthServiceTest {
                 .thenThrow(new BadCredentialsException("Invalid credentials"));
 
         // When & Then
-        assertThrows(BadCredentialsException.class, () -> authService.login(request));
+        assertThrows(UnauthorizedException.class, () -> authService.login(request));
         verify(userRepository, never()).findByEmail(any());
     }
 }

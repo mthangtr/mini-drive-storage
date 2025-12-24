@@ -106,7 +106,7 @@ class FileServiceTest {
                 .build();
 
         when(userRepository.findByEmail(testUser.getEmail())).thenReturn(Optional.of(testUser));
-        when(fileItemRepository.existsByNameAndParentAndOwnerAndDeletedFalse(anyString(), any(), any(), anyBoolean()))
+        when(fileItemRepository.existsByNameAndParentAndOwnerAndDeletedFalse(anyString(), any(), any()))
                 .thenReturn(false);
         when(fileItemRepository.save(any(FileItem.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -130,7 +130,7 @@ class FileServiceTest {
                 .build();
 
         when(userRepository.findByEmail(testUser.getEmail())).thenReturn(Optional.of(testUser));
-        when(fileItemRepository.existsByNameAndParentAndOwnerAndDeletedFalse(anyString(), any(), any(), anyBoolean()))
+        when(fileItemRepository.existsByNameAndParentAndOwnerAndDeletedFalse(anyString(), any(), any()))
                 .thenReturn(true);
 
         // When & Then
