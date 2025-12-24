@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { FileText, Folder, Upload, FolderPlus, Download, Trash2, Share2, Users } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { FileText, Folder, Upload, FolderPlus, Download, Trash2, Share2, Users, ChevronRight, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -23,6 +23,11 @@ import ShareDialog from "@/components/share-dialog";
 
 type ViewMode = "my-drive" | "shared-with-me";
 
+interface FolderPath {
+  id: string | null;
+  name: string;
+}
+
 export default function DashboardPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("my-drive");
@@ -30,13 +35,15 @@ export default function DashboardPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [shareDialogFile, setShareDialogFile] = useState<FileItem | null>(null);
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [folderPath, setFolderPath] = useState<FolderPath[]>([{ id: null, name: "My Drive" }]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadFiles = async () => {
     try {
       setIsLoading(true);
       const data = viewMode === "my-drive" 
-        ? await fileService.listFiles()
+        ? await fileService.listFiles({ parentId: currentFolderId || undefined })
         : await fileService.getSharedWithMe();
       setFiles(data);
     } catch (err) {
@@ -53,7 +60,29 @@ export default function DashboardPage() {
   useEffect(() => {
     loadFiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode]);
+  }, [viewMode, currentFolderId]);
+
+  const navigateToFolder = useCallback((folder: FileItem) => {
+    if (folder.type !== FileType.FOLDER) return;
+    setCurrentFolderId(folder.id);
+    setFolderPath(prev => [...prev, { id: folder.id, name: folder.name }]);
+  }, []);
+
+  const navigateToBreadcrumb = useCallback((index: number) => {
+    const targetFolder = folderPath[index];
+    setCurrentFolderId(targetFolder.id);
+    setFolderPath(folderPath.slice(0, index + 1));
+  }, [folderPath]);
+
+  const resetNavigation = useCallback(() => {
+    setCurrentFolderId(null);
+    setFolderPath([{ id: null, name: "My Drive" }]);
+  }, []);
+
+  useEffect(() => {
+    // Reset navigation when switching views
+    resetNavigation();
+  }, [viewMode, resetNavigation]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
@@ -61,8 +90,8 @@ export default function DashboardPage() {
 
     try {
       setIsUploading(true);
-      await fileService.uploadFiles(Array.from(selectedFiles));
-      await loadFiles(); // Reload files
+      await fileService.uploadFiles(Array.from(selectedFiles), currentFolderId || undefined);
+      await loadFiles();
       toast.success("Files uploaded successfully");
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -83,7 +112,10 @@ export default function DashboardPage() {
     if (!folderName) return;
 
     try {
-      await fileService.createFolder({ name: folderName });
+      await fileService.createFolder({ 
+        name: folderName, 
+        parentId: currentFolderId || undefined 
+      });
       await loadFiles();
       toast.success("Folder created successfully");
     } catch (err) {
@@ -182,6 +214,25 @@ export default function DashboardPage() {
         </TabsList>
 
         <TabsContent value={viewMode} className="mt-6">
+          {/* Breadcrumb Navigation */}
+          {viewMode === "my-drive" && folderPath.length > 0 && (
+            <div className="flex items-center gap-2 mb-4 text-sm">
+              <Home className="h-4 w-4 text-muted-foreground" />
+              {folderPath.map((folder, index) => (
+                <div key={folder.id || "root"} className="flex items-center gap-2">
+                  {index > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  <button
+                    onClick={() => navigateToBreadcrumb(index)}
+                    className="hover:text-foreground text-muted-foreground transition-colors"
+                    disabled={index === folderPath.length - 1}
+                  >
+                    {folder.name}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               {viewMode === "my-drive" ? "My Drive" : "Shared with me"}
@@ -238,7 +289,8 @@ export default function DashboardPage() {
             {files.map((file) => (
               <div
                 key={file.id}
-                className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/50 transition-colors group"
+                className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/50 transition-colors group cursor-pointer"
+                onClick={() => file.type === FileType.FOLDER && viewMode === "my-drive" && navigateToFolder(file)}
               >
                 <div className="col-span-6 flex items-center gap-3">
                   {file.type === FileType.FOLDER ? (
@@ -264,7 +316,7 @@ export default function DashboardPage() {
                 <div className="col-span-1 text-sm text-muted-foreground">
                   {formatSize(file.size)}
                 </div>
-                <div className="col-span-1 flex justify-end gap-1">
+                <div className="col-span-1 flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                   {viewMode === "my-drive" && (
                     <Button
                       variant="ghost"

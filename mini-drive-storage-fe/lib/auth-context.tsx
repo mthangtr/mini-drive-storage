@@ -41,7 +41,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       storageUsed: response.storageUsed,
       storageQuota: response.storageQuota,
     });
-    router.push("/dashboard");
   };
 
   const register = async (data: RegisterRequest) => {
@@ -53,7 +52,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       storageUsed: response.storageUsed,
       storageQuota: response.storageQuota,
     });
-    router.push("/dashboard");
   };
 
   const logout = () => {

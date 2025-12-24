@@ -7,6 +7,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Configuration
 @EnableAsync
@@ -22,5 +24,11 @@ public class AsyncConfig {
         executor.setThreadNamePrefix("async-");
         executor.initialize();
         return executor;
+    }
+    
+    @Bean
+    public ExecutorService executorService() {
+        // For cleanup multi-threading tasks
+        return Executors.newFixedThreadPool(5);
     }
 }

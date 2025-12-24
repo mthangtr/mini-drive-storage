@@ -15,6 +15,7 @@ import org.fyp.minidrivestoragebe.repository.FileItemRepository;
 import org.fyp.minidrivestoragebe.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +49,7 @@ public class DownloadService {
      * Initiate folder download (async zip creation)
      */
     @Transactional
+    @PreAuthorize("isAuthenticated()")
     public DownloadStatusResponse initiateFolderDownload(String folderId, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -85,6 +87,7 @@ public class DownloadService {
      * Get download status
      */
     @Transactional(readOnly = true)
+    @PreAuthorize("isAuthenticated()")
     public DownloadStatusResponse getDownloadStatus(String requestId, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));

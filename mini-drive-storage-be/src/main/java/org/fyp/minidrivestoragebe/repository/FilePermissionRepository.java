@@ -42,4 +42,10 @@ public interface FilePermissionRepository extends JpaRepository<FilePermission, 
     
     // Delete all permissions for a file
     void deleteByFileItemId(String fileItemId);
+    
+    // Count permissions by user
+    Long countByUser(User user);
+    
+    // Count permissions by file owner, excluding specific user
+    Long countByFileItemOwnerAndUserNot(User owner, User excludeUser);
 }

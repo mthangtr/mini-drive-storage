@@ -60,4 +60,7 @@ public interface FileItemRepository extends JpaRepository<FileItem, String> {
            "WHERE f.id = :fileId AND f.deleted = false " +
            "AND (f.owner.id = :userId OR p.user.id = :userId)")
     boolean hasAccess(@Param("fileId") String fileId, @Param("userId") String userId);
+    
+    // Count by owner and type and deleted status
+    Long countByOwnerAndTypeAndDeleted(User owner, FileType type, Boolean deleted);
 }

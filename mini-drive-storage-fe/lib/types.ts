@@ -108,3 +108,14 @@ export interface ShareFileResponse {
   permission: PermissionLevel;
   sharedAt: string;
 }
+
+export interface UsageStatsResponse {
+  storageUsed: number;
+  storageQuota: number;
+  storageAvailable: number;
+  usagePercentage: number;
+  totalFiles: number;
+  totalFolders: number;
+  totalSharedWithMe: number;
+  totalSharedByMe: number;
+}

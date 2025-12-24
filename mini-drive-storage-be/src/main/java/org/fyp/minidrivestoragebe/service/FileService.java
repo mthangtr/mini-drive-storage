@@ -41,6 +41,7 @@ public class FileService {
      * Upload multiple files
      */
     @Transactional
+    @PreAuthorize("isAuthenticated()")
     public UploadFileResponse uploadFiles(List<MultipartFile> files, String parentId, String userEmail) {
         User user = getUserByEmail(userEmail);
         FileItem parent = null;
@@ -109,6 +110,7 @@ public class FileService {
      * Create a new folder
      */
     @Transactional
+    @PreAuthorize("isAuthenticated()")
     public FileItemResponse createFolder(CreateFolderRequest request, String userEmail) {
         User user = getUserByEmail(userEmail);
         FileItem parent = null;
@@ -155,6 +157,7 @@ public class FileService {
      * List files and folders
      */
     @Transactional(readOnly = true)
+    @PreAuthorize("isAuthenticated()")
     public List<FileItemResponse> listFiles(FileListRequest request, String userEmail) {
         User user = getUserByEmail(userEmail);
         List<FileItem> items;
@@ -204,6 +207,7 @@ public class FileService {
      * Get file details by ID
      */
     @Transactional(readOnly = true)
+    @PreAuthorize("isAuthenticated()")
     public FileItemResponse getFileDetails(String fileId, String userEmail) {
         User user = getUserByEmail(userEmail);
         FileItem fileItem = getFileItemById(fileId);
@@ -218,6 +222,7 @@ public class FileService {
      * Download file resource
      */
     @Transactional(readOnly = true)
+    @PreAuthorize("isAuthenticated()")
     public Resource downloadFile(String fileId, String userEmail) {
         User user = getUserByEmail(userEmail);
         FileItem fileItem = getFileItemById(fileId);
@@ -236,6 +241,7 @@ public class FileService {
      * Soft delete a file or folder
      */
     @Transactional
+    @PreAuthorize("isAuthenticated()")
     public void deleteFile(String fileId, String userEmail) {
         User user = getUserByEmail(userEmail);
         FileItem fileItem = getFileItemById(fileId);
@@ -351,6 +357,7 @@ public class FileService {
      * Share a file or folder with another user
      */
     @Transactional
+    @PreAuthorize("isAuthenticated()")
     public ShareFileResponse shareFile(String fileId, ShareFileRequest request, String ownerEmail) {
         User owner = getUserByEmail(ownerEmail);
         FileItem fileItem = getFileItemById(fileId);
@@ -448,6 +455,7 @@ public class FileService {
      * Get list of files shared with current user
      */
     @Transactional(readOnly = true)
+    @PreAuthorize("isAuthenticated()")
     public List<FileItemResponse> getSharedWithMe(String userEmail) {
         User user = getUserByEmail(userEmail);
         
@@ -475,6 +483,7 @@ public class FileService {
      * Get list of users a file is shared with
      */
     @Transactional(readOnly = true)
+    @PreAuthorize("isAuthenticated()")
     public List<ShareFileResponse> getFileShares(String fileId, String userEmail) {
         User user = getUserByEmail(userEmail);
         FileItem fileItem = getFileItemById(fileId);
@@ -502,6 +511,7 @@ public class FileService {
      * Remove share (revoke permission)
      */
     @Transactional
+    @PreAuthorize("isAuthenticated()")
     public void removeShare(String fileId, String recipientEmail, String ownerEmail) {
         User owner = getUserByEmail(ownerEmail);
         FileItem fileItem = getFileItemById(fileId);
