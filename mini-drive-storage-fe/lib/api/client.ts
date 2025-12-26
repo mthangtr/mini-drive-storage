@@ -1,4 +1,5 @@
 import type { ApiResponse, ErrorResponse } from "@/lib/types";
+import { getCookie } from "./auth";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -18,7 +19,7 @@ export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== "undefined" ? getCookie("token") : null;
 
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
