@@ -27,13 +27,16 @@ export const authService = {
     const response = await api.post<AuthResponse>("/api/v1/auth/register", data);
     if (response.token) {
       setCookie("token", response.token, 7);
-      localStorage.setItem("user", JSON.stringify({
-        id: response.userId,
-        email: response.email,
-        fullName: response.fullName,
-        storageUsed: response.storageUsed,
-        storageQuota: response.storageQuota,
-      }));
+      // Store user info for UI display
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify({
+          id: response.userId,
+          email: response.email,
+          fullName: response.fullName,
+          storageUsed: response.storageUsed,
+          storageQuota: response.storageQuota,
+        }));
+      }
     }
     return response;
   },
@@ -42,20 +45,25 @@ export const authService = {
     const response = await api.post<AuthResponse>("/api/v1/auth/login", data);
     if (response.token) {
       setCookie("token", response.token, 7);
-      localStorage.setItem("user", JSON.stringify({
-        id: response.userId,
-        email: response.email,
-        fullName: response.fullName,
-        storageUsed: response.storageUsed,
-        storageQuota: response.storageQuota,
-      }));
+      // Store user info for UI display
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify({
+          id: response.userId,
+          email: response.email,
+          fullName: response.fullName,
+          storageUsed: response.storageUsed,
+          storageQuota: response.storageQuota,
+        }));
+      }
     }
     return response;
   },
 
   logout() {
     deleteCookie("token");
-    localStorage.removeItem("user");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("user");
+    }
   },
 
   getToken(): string | null {

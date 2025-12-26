@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HardDrive, Share2, Trash2, LogOut, BarChart3 } from "lucide-react";
+import { HardDrive, Share2, LogOut, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { useEffect, useState } from "react";
@@ -84,18 +84,6 @@ export default function DashboardLayout({
           >
             <Share2 className="h-4 w-4" />
             Shared with me
-          </Link>
-          <Link
-            href="/dashboard/trash"
-            className={cn(
-              "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
-              pathname === "/dashboard/trash"
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            )}
-          >
-            <Trash2 className="h-4 w-4" />
-            Trash
           </Link>
         </nav>
 

@@ -48,7 +48,7 @@ export const fileService = {
   },
 
   async downloadFile(fileId: string, fileName: string): Promise<void> {
-    const token = localStorage.getItem("token");
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/v1/files/${fileId}/download`,
       {
@@ -82,7 +82,7 @@ export const fileService = {
   },
 
   async downloadZipFile(requestId: string, fileName: string): Promise<void> {
-    const token = localStorage.getItem("token");
+    const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/v1/files/downloads/${requestId}/file`,
       {
@@ -125,17 +125,5 @@ export const fileService = {
 
   async removeShare(fileId: string, email: string): Promise<void> {
     return api.delete<void>(`/api/v1/files/${fileId}/share/${encodeURIComponent(email)}`);
-  },
-
-  async restoreFile(fileId: string): Promise<void> {
-    // Note: This endpoint may need to be added to backend
-    // For now, this is a placeholder implementation
-    return api.post<void>(`/api/v1/files/${fileId}/restore`);
-  },
-
-  async permanentDelete(fileId: string): Promise<void> {
-    // Note: This endpoint may need to be added to backend
-    // For now, this is a placeholder implementation
-    return api.delete<void>(`/api/v1/files/${fileId}/permanent`);
   },
 };
