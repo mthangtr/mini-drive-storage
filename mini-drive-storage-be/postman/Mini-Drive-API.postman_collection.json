@@ -1,0 +1,618 @@
+{
+	"info": {
+		"_postman_id": "mini-drive-api-collection",
+		"name": "Mini-Drive Storage API",
+		"description": "Complete API collection for Mini-Drive Storage Platform with auto-authentication",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{TOKEN}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global pre-request script - auto refresh token if expired",
+					"const token = pm.environment.get('TOKEN');",
+					"",
+					"if (!token) {",
+					"    console.log('No token found, will need to login');",
+					"}"
+				]
+			}
+		}
+	],
+	"item": [
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data.token) {",
+									"        pm.environment.set('TOKEN', response.data.token);",
+									"        pm.environment.set('USER_ID', response.data.userId);",
+									"        pm.environment.set('USER_EMAIL', response.data.email);",
+									"        console.log('✅ Token saved automatically:', response.data.token.substring(0, 20) + '...');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{TEST_EMAIL}}\",\n    \"password\": \"{{TEST_PASSWORD}}\",\n    \"fullName\": \"Test User\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/auth/register",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Register a new user. Token will be automatically saved to environment."
+					},
+					"response": []
+				},
+				{
+					"name": "Login User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data.token) {",
+									"        pm.environment.set('TOKEN', response.data.token);",
+									"        pm.environment.set('USER_ID', response.data.userId);",
+									"        pm.environment.set('USER_EMAIL', response.data.email);",
+									"        console.log('✅ Token saved automatically:', response.data.token.substring(0, 20) + '...');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{TEST_EMAIL}}\",\n    \"password\": \"{{TEST_PASSWORD}}\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/auth/login",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login with existing credentials. Token will be automatically saved to environment."
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints - Register and Login"
+		},
+		{
+			"name": "2. File Management",
+			"item": [
+				{
+					"name": "Upload Multiple Files",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data.files && response.data.files.length > 0) {",
+									"        pm.environment.set('LAST_FILE_ID', response.data.files[0].id);",
+									"        console.log('✅ File ID saved:', response.data.files[0].id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "files",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "parentId",
+									"value": "{{FOLDER_ID}}",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/files",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"files"
+							]
+						},
+						"description": "Upload one or multiple files. Optional parentId for uploading to a specific folder."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Folder",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data.id) {",
+									"        pm.environment.set('FOLDER_ID', response.data.id);",
+									"        console.log('✅ Folder ID saved:', response.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"My Test Folder\",\n    \"parentId\": null\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/files",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"files"
+							]
+						},
+						"description": "Create a new folder. Set parentId to null for root level."
+					},
+					"response": []
+				},
+				{
+					"name": "List Files",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/files",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"files"
+							],
+							"query": [
+								{
+									"key": "parentId",
+									"value": "{{FOLDER_ID}}",
+									"disabled": true
+								},
+								{
+									"key": "q",
+									"value": "search term",
+									"disabled": true
+								},
+								{
+									"key": "type",
+									"value": "FILE",
+									"disabled": true
+								},
+								{
+									"key": "fromSize",
+									"value": "0",
+									"disabled": true
+								},
+								{
+									"key": "toSize",
+									"value": "1000000",
+									"disabled": true
+								}
+							]
+						},
+						"description": "List files with optional filters: parentId, search query (q), type (FILE/FOLDER), size range"
+					},
+					"response": []
+				},
+				{
+					"name": "Get File Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/files/{{LAST_FILE_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"files",
+								"{{LAST_FILE_ID}}"
+							]
+						},
+						"description": "Get details of a specific file or folder by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Download File",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/files/{{LAST_FILE_ID}}/download",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"files",
+								"{{LAST_FILE_ID}}",
+								"download"
+							]
+						},
+						"description": "Download a file (synchronous). For folders, use the async download endpoint."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete File/Folder (Soft)",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/files/{{LAST_FILE_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"files",
+								"{{LAST_FILE_ID}}"
+							]
+						},
+						"description": "Soft delete a file or folder (moves to trash)"
+					},
+					"response": []
+				}
+			],
+			"description": "File and folder management operations"
+		},
+		{
+			"name": "3. Folder Download (Async)",
+			"item": [
+				{
+					"name": "Initiate Folder Download",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.success && response.data.requestId) {",
+									"        pm.environment.set('DOWNLOAD_REQUEST_ID', response.data.requestId);",
+									"        console.log('✅ Download request ID saved:', response.data.requestId);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/files/{{FOLDER_ID}}/download",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"files",
+								"{{FOLDER_ID}}",
+								"download"
+							]
+						},
+						"description": "Initiate async folder download. Returns a requestId for polling."
+					},
+					"response": []
+				},
+				{
+					"name": "Check Download Status (Polling)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/files/downloads/{{DOWNLOAD_REQUEST_ID}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"files",
+								"downloads",
+								"{{DOWNLOAD_REQUEST_ID}}"
+							]
+						},
+						"description": "Poll download status. Status: PENDING, PROCESSING, READY, FAILED"
+					},
+					"response": []
+				},
+				{
+					"name": "Download ZIP File",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/files/downloads/{{DOWNLOAD_REQUEST_ID}}/file",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"files",
+								"downloads",
+								"{{DOWNLOAD_REQUEST_ID}}",
+								"file"
+							]
+						},
+						"description": "Download the ZIP file when status is READY"
+					},
+					"response": []
+				}
+			],
+			"description": "Async folder download with polling"
+		},
+		{
+			"name": "4. Sharing & Permissions",
+			"item": [
+				{
+					"name": "Share File/Folder",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{OTHER_USER_EMAIL}}\",\n    \"permission\": \"VIEW\"\n}"
+						},
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/files/{{LAST_FILE_ID}}/share",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"files",
+								"{{LAST_FILE_ID}}",
+								"share"
+							]
+						},
+						"description": "Share a file or folder with another user. Permissions: VIEW or EDIT. For folders, permissions are applied recursively."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Shared With Me",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/files/shared-with-me",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"files",
+								"shared-with-me"
+							]
+						},
+						"description": "Get list of files/folders shared with current user"
+					},
+					"response": []
+				},
+				{
+					"name": "Get File Shares",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/files/{{LAST_FILE_ID}}/shares",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"files",
+								"{{LAST_FILE_ID}}",
+								"shares"
+							]
+						},
+						"description": "Get list of users a file/folder is shared with"
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Share",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/files/{{LAST_FILE_ID}}/share/{{OTHER_USER_EMAIL}}",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"files",
+								"{{LAST_FILE_ID}}",
+								"share",
+								"{{OTHER_USER_EMAIL}}"
+							]
+						},
+						"description": "Revoke sharing permission for a specific user"
+					},
+					"response": []
+				}
+			],
+			"description": "File and folder sharing with permission management"
+		},
+		{
+			"name": "5. Analytics",
+			"item": [
+				{
+					"name": "Get Storage Usage",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/analytics/usage",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"analytics",
+								"usage"
+							]
+						},
+						"description": "Get current user's storage usage statistics"
+					},
+					"response": []
+				}
+			],
+			"description": "Analytics and statistics endpoints"
+		},
+		{
+			"name": "6. Debug (Development Only)",
+			"item": [
+				{
+					"name": "Generate Mock System",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{BASE_URL}}/api/v1/debug/generate-system",
+							"host": [
+								"{{BASE_URL}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"debug",
+								"generate-system"
+							]
+						},
+						"description": "Generate mock system data: 10 users, ~10,000 files, 10% random sharing. Warning: This will delete existing test data!"
+					},
+					"response": []
+				}
+			],
+			"description": "Debug endpoints for testing (should be secured in production)"
+		}
+	],
+	"variable": [
+		{
+			"key": "BASE_URL",
+			"value": "http://localhost:8080"
+		}
+	]
+}

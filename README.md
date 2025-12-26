@@ -51,6 +51,14 @@ Mini-Drive is a cloud storage solution that handles file uploads, folder organiz
 - [next-themes](https://github.com/pacocoursey/next-themes) - Theme management
 - [Public Sans](https://fonts.google.com/specimen/Public+Sans) - Google font by USWDS
 
+## API Documentation
+
+- **Swagger UI**: Available at `http://localhost:8080/swagger-ui/index.html` when the backend is running
+- **Postman Collection**: Located in [mini-drive-storage-be/postman/](mini-drive-storage-be/postman/)
+  - Pre-configured with environment variables
+  - Auto-token management via test scripts
+  - 17 endpoints covering Auth, File Management, Sharing, Analytics, and Debug
+
 ## Project Structure
 
 ```

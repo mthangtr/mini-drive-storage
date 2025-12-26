@@ -44,6 +44,8 @@ public class SecurityConfig {
                         // Public endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/error").permitAll()
+                        // Swagger/OpenAPI endpoints
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         // Debug endpoints (should be secured in production)
                         .requestMatchers("/api/v1/debug/**").permitAll()
                         // All other endpoints require authentication
