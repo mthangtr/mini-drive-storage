@@ -19,9 +19,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
-/**
- * Service for handling physical file storage operations on disk
- */
 @Service
 @Slf4j
 public class FileStorageService {
@@ -42,20 +39,15 @@ public class FileStorageService {
         }
     }
 
-    /**
-     * Store a file and return the storage path
-     */
     public String storeFile(MultipartFile file, String ownerId) {
-        // Normalize file name
         String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
         
         try {
-            // Check if file name contains invalid characters
             if (originalFilename.contains("..")) {
                 throw new FileStorageException("Filename contains invalid path sequence: " + originalFilename);
             }
 
-            // Generate unique filename to avoid collisions
+            // Tạo tên file unique để tránh trùng lặp
             String extension = "";
             int lastDotIndex = originalFilename.lastIndexOf('.');
             if (lastDotIndex > 0) {
@@ -63,17 +55,14 @@ public class FileStorageService {
             }
             String uniqueFilename = UUID.randomUUID().toString() + extension;
 
-            // Create user-specific directory
             Path userDirectory = this.fileStorageLocation.resolve(ownerId);
             Files.createDirectories(userDirectory);
 
-            // Copy file to the target location
             Path targetLocation = userDirectory.resolve(uniqueFilename);
             try (InputStream inputStream = file.getInputStream()) {
                 Files.copy(inputStream, targetLocation, StandardCopyOption.REPLACE_EXISTING);
             }
 
-            // Return relative path for database storage
             return ownerId + "/" + uniqueFilename;
 
         } catch (IOException ex) {
@@ -81,9 +70,6 @@ public class FileStorageService {
         }
     }
 
-    /**
-     * Load file as Resource
-     */
     public Resource loadFileAsResource(String storagePath) {
         try {
             Path filePath = this.fileStorageLocation.resolve(storagePath).normalize();
@@ -99,9 +85,6 @@ public class FileStorageService {
         }
     }
 
-    /**
-     * Delete a physical file
-     */
     public void deleteFile(String storagePath) {
         try {
             Path filePath = this.fileStorageLocation.resolve(storagePath).normalize();
@@ -109,13 +92,9 @@ public class FileStorageService {
             log.debug("Deleted file: {}", storagePath);
         } catch (IOException ex) {
             log.error("Could not delete file: {}", storagePath, ex);
-            // Don't throw exception, just log it (file might already be deleted)
         }
     }
 
-    /**
-     * Get file size
-     */
     public long getFileSize(String storagePath) {
         try {
             Path filePath = this.fileStorageLocation.resolve(storagePath).normalize();
@@ -126,9 +105,6 @@ public class FileStorageService {
         }
     }
 
-    /**
-     * Check if file exists
-     */
     public boolean fileExists(String storagePath) {
         try {
             Path filePath = this.fileStorageLocation.resolve(storagePath).normalize();

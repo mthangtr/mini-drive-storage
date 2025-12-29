@@ -33,16 +33,9 @@ public class AnalyticsService {
         Long storageAvailable = storageQuota - storageUsed;
         Double usagePercentage = storageQuota > 0 ? (storageUsed * 100.0) / storageQuota : 0.0;
 
-        // Count files owned by user (not deleted)
         Long totalFiles = fileItemRepository.countByOwnerAndTypeAndDeleted(user, FileType.FILE, false);
-        
-        // Count folders owned by user (not deleted)
         Long totalFolders = fileItemRepository.countByOwnerAndTypeAndDeleted(user, FileType.FOLDER, false);
-        
-        // Count items shared with me
         Long totalSharedWithMe = filePermissionRepository.countByUser(user);
-        
-        // Count items I shared with others
         Long totalSharedByMe = filePermissionRepository.countByFileItemOwnerAndUserNot(user, user);
 
         log.info("Usage stats retrieved for user: {}", userEmail);

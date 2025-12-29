@@ -29,24 +29,22 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        // Check if email already exists
         if (userRepository.existsByEmail(request.getEmail())) {
             throw BadRequestException.emailAlreadyExists();
         }
 
-        // Create new user
+        // Quota mặc định 10GB
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .fullName(request.getFullName())
                 .storageUsed(0L)
-                .storageQuota(10737418240L) // 10GB
+                .storageQuota(10737418240L)
                 .enabled(true)
                 .build();
 
         user = userRepository.save(user);
 
-        // Generate JWT token
         String token = jwtUtil.generateToken(user.getEmail(), null);
 
         return AuthResponse.of(
@@ -62,7 +60,6 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
         try {
-            // Authenticate user
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             request.getEmail(),
@@ -70,11 +67,9 @@ public class AuthService {
                     )
             );
 
-            // Get user details
             User user = userRepository.findByEmail(request.getEmail())
                     .orElseThrow(UnauthorizedException::invalidCredentials);
 
-            // Generate JWT token
             String token = jwtUtil.generateToken(user.getEmail(), null);
 
             return AuthResponse.of(

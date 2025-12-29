@@ -45,9 +45,6 @@ public class DownloadService {
     @Value("${app.storage.location}")
     private String storageLocation;
 
-    /**
-     * Initiate folder download (async zip creation)
-     */
     @Transactional
     @PreAuthorize("isAuthenticated()")
     public DownloadStatusResponse initiateFolderDownload(String folderId, String userEmail) {
@@ -61,7 +58,6 @@ public class DownloadService {
             throw new BadRequestException("Only folders can be downloaded asynchronously");
         }
 
-        // Create download request
         String requestId = UUID.randomUUID().toString();
         DownloadRequest downloadRequest = DownloadRequest.builder()
                 .requestId(requestId)
@@ -72,7 +68,6 @@ public class DownloadService {
 
         downloadRequest = downloadRequestRepository.save(downloadRequest);
 
-        // Trigger async zip creation
         processDownloadRequestAsync(downloadRequest.getId());
 
         return DownloadStatusResponse.of(
@@ -83,9 +78,6 @@ public class DownloadService {
         );
     }
 
-    /**
-     * Get download status
-     */
     @Transactional(readOnly = true)
     @PreAuthorize("isAuthenticated()")
     public DownloadStatusResponse getDownloadStatus(String requestId, String userEmail) {
@@ -95,7 +87,6 @@ public class DownloadService {
         DownloadRequest request = downloadRequestRepository.findByRequestId(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Download request not found"));
 
-        // Check ownership
         if (!request.getUser().getId().equals(user.getId())) {
             throw new BadRequestException("You don't have permission to access this download request");
         }
@@ -120,9 +111,7 @@ public class DownloadService {
         );
     }
 
-    /**
-     * Async processing of download request (zip creation)
-     */
+    // Xử lý async: tạo file ZIP từ folder
     @Async("taskExecutor")
     public void processDownloadRequestAsync(String downloadRequestId) {
         try {
@@ -131,14 +120,11 @@ public class DownloadService {
 
             log.info("Starting async zip creation for request: {}", request.getRequestId());
 
-            // Update status to PROCESSING
             request.setStatus(DownloadStatus.PROCESSING);
             downloadRequestRepository.save(request);
 
-            // Create zip file
             String zipPath = createZipFile(request.getFileItem(), request.getUser().getId());
 
-            // Update status to READY
             request.setStatus(DownloadStatus.READY);
             request.setDownloadPath(zipPath);
             downloadRequestRepository.save(request);
@@ -148,7 +134,6 @@ public class DownloadService {
         } catch (Exception e) {
             log.error("Failed to create zip file for request: {}", downloadRequestId, e);
 
-            // Update status to FAILED
             downloadRequestRepository.findById(downloadRequestId).ifPresent(req -> {
                 req.setStatus(DownloadStatus.FAILED);
                 req.setErrorMessage(e.getMessage());
@@ -157,34 +142,24 @@ public class DownloadService {
         }
     }
 
-    /**
-     * Create zip file for folder and all its contents
-     */
     private String createZipFile(FileItem folder, String userId) throws IOException {
-        // Create temp directory for zips
         Path zipDir = Paths.get(storageLocation, "zips", userId);
         Files.createDirectories(zipDir);
 
-        // Generate unique zip filename
         String zipFilename = folder.getName() + "_" + UUID.randomUUID() + ".zip";
         Path zipPath = zipDir.resolve(zipFilename);
 
         try (FileOutputStream fos = new FileOutputStream(zipPath.toFile());
              ZipOutputStream zos = new ZipOutputStream(fos)) {
 
-            // Add folder contents to zip
             addFolderToZip(folder, "", zos);
         }
 
         log.info("Created zip file: {}", zipPath);
 
-        // Return relative path
         return "zips/" + userId + "/" + zipFilename;
     }
 
-    /**
-     * Recursively add folder contents to zip
-     */
     private void addFolderToZip(FileItem folder, String parentPath, ZipOutputStream zos) throws IOException {
         List<FileItem> children = fileItemRepository.findByParentAndDeletedFalse(folder);
 
@@ -192,19 +167,15 @@ public class DownloadService {
             String currentPath = parentPath.isEmpty() ? child.getName() : parentPath + "/" + child.getName();
 
             if (child.getType() == FileType.FOLDER) {
-                // Add folder entry
                 ZipEntry folderEntry = new ZipEntry(currentPath + "/");
                 zos.putNextEntry(folderEntry);
                 zos.closeEntry();
 
-                // Recursively add folder contents
                 addFolderToZip(child, currentPath, zos);
             } else {
-                // Add file
                 ZipEntry fileEntry = new ZipEntry(currentPath);
                 zos.putNextEntry(fileEntry);
 
-                // Copy file content to zip
                 Path filePath = Paths.get(storageLocation, child.getStoragePath());
                 if (Files.exists(filePath)) {
                     try (FileInputStream fis = new FileInputStream(filePath.toFile())) {
@@ -221,9 +192,6 @@ public class DownloadService {
         }
     }
 
-    /**
-     * Get zip file for download
-     */
     public File getZipFile(String requestId, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -231,7 +199,6 @@ public class DownloadService {
         DownloadRequest request = downloadRequestRepository.findByRequestId(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Download request not found"));
 
-        // Check ownership
         if (!request.getUser().getId().equals(user.getId())) {
             throw new BadRequestException("You don't have permission to access this download");
         }
