@@ -30,10 +30,6 @@ public class CleanupService {
     @Value("${app.cleanup.retention-days:30}")
     private int retentionDays;
 
-    /**
-     * Scheduled cleanup task - runs at 2:00 AM every day
-     * Cron format: second minute hour day month day-of-week
-     */
     @Scheduled(cron = "${app.cleanup.cron:0 0 2 * * ?}")
     @Transactional
     public void cleanupDeletedFiles() {
@@ -49,7 +45,6 @@ public class CleanupService {
         
         log.info("Found {} files to permanently delete", filesToDelete.size());
         
-        // Use multi-threading to process deletions
         int batchSize = 100;
         List<Future<Integer>> futures = new ArrayList<>();
         
@@ -61,7 +56,6 @@ public class CleanupService {
             futures.add(future);
         }
         
-        // Wait for all batches to complete
         int totalDeleted = 0;
         int totalFailed = 0;
         
@@ -78,22 +72,17 @@ public class CleanupService {
         log.info("Cleanup completed: {} files deleted, {} batches failed", totalDeleted, totalFailed);
     }
 
-    /**
-     * Process a batch of files for deletion
-     */
     private Integer processBatch(List<FileItem> batch) {
-        int deleted = 0;
+        int deletedCount = 0;
         
         for (FileItem fileItem : batch) {
             try {
-                // Delete physical file if it exists
                 if (fileItem.getStoragePath() != null && !fileItem.getStoragePath().isEmpty()) {
                     deletePhysicalFile(fileItem.getStoragePath());
                 }
                 
-                // Delete from database
                 fileItemRepository.delete(fileItem);
-                deleted++;
+                deletedCount++;
                 
                 log.debug("Permanently deleted file: {} (ID: {})", fileItem.getName(), fileItem.getId());
             } catch (Exception e) {
@@ -101,12 +90,9 @@ public class CleanupService {
             }
         }
         
-        return deleted;
+        return deletedCount;
     }
 
-    /**
-     * Delete physical file from storage
-     */
     private void deletePhysicalFile(String storagePath) {
         try {
             Path path = Paths.get(storagePath);
@@ -116,34 +102,6 @@ public class CleanupService {
             }
         } catch (IOException e) {
             log.error("Failed to delete physical file: {}", storagePath, e);
-            // Don't throw exception, continue with database deletion
         }
-    }
-
-    /**
-     * Manual trigger for cleanup (for testing or manual operations)
-     */
-    @Transactional
-    public int manualCleanup(int daysOld) {
-        log.info("Manual cleanup triggered for files older than {} days", daysOld);
-        
-        LocalDateTime cutoffDate = LocalDateTime.now().minusDays(daysOld);
-        List<FileItem> filesToDelete = fileItemRepository.findByDeletedTrueAndDeletedAtBefore(cutoffDate);
-        
-        int deleted = 0;
-        for (FileItem fileItem : filesToDelete) {
-            try {
-                if (fileItem.getStoragePath() != null && !fileItem.getStoragePath().isEmpty()) {
-                    deletePhysicalFile(fileItem.getStoragePath());
-                }
-                fileItemRepository.delete(fileItem);
-                deleted++;
-            } catch (Exception e) {
-                log.error("Failed to delete file during manual cleanup: {}", fileItem.getId(), e);
-            }
-        }
-        
-        log.info("Manual cleanup completed: {} files deleted", deleted);
-        return deleted;
     }
 }

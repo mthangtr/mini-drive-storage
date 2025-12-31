@@ -96,12 +96,16 @@ public class DownloadService {
             downloadUrl = "/api/v1/files/downloads/" + requestId + "/file";
         }
 
-        String message = switch (request.getStatus()) {
-            case PENDING -> "Download request is pending";
-            case PROCESSING -> "Zip file is being created";
-            case READY -> "Zip file is ready for download";
-            case FAILED -> "Download failed: " + request.getErrorMessage();
-        };
+        String message;
+        if (request.getStatus() == DownloadStatus.PENDING) {
+            message = "Download request is pending";
+        } else if (request.getStatus() == DownloadStatus.PROCESSING) {
+            message = "Zip file is being created";
+        } else if (request.getStatus() == DownloadStatus.READY) {
+            message = "Zip file is ready for download";
+        } else {
+            message = "Download failed: " + request.getErrorMessage();
+        }
 
         return DownloadStatusResponse.of(
                 requestId,
@@ -111,7 +115,6 @@ public class DownloadService {
         );
     }
 
-    // Xử lý async: tạo file ZIP từ folder
     @Async("taskExecutor")
     public void processDownloadRequestAsync(String downloadRequestId) {
         try {

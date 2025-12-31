@@ -79,12 +79,15 @@ public class GlobalExceptionHandler {
         
         Map<String, List<String>> validationErrors = new HashMap<>();
         
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
+        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
+            String fieldName = error.getField();
             String errorMessage = error.getDefaultMessage();
             
-            validationErrors.computeIfAbsent(fieldName, k -> new ArrayList<>()).add(errorMessage);
-        });
+            if (!validationErrors.containsKey(fieldName)) {
+                validationErrors.put(fieldName, new ArrayList<>());
+            }
+            validationErrors.get(fieldName).add(errorMessage);
+        }
 
         ErrorResponse error = ErrorResponse.withValidation(
                 HttpStatus.BAD_REQUEST.value(),

@@ -37,7 +37,7 @@ public class DebugService {
     private static final int NUM_USERS = 10;
     private static final int TOTAL_FILES_TARGET = 10000;
     private static final int FILES_PER_USER = TOTAL_FILES_TARGET / NUM_USERS;
-    private static final double SHARING_PERCENTAGE = 0.10; // 10%
+    private static final double SHARING_PERCENTAGE = 0.10;
     private static final String[] MIME_TYPES = {
         "application/pdf", "text/plain", "image/jpeg", "image/png",
         "application/vnd.ms-excel", "application/msword",
@@ -52,7 +52,6 @@ public class DebugService {
         long startTime = System.currentTimeMillis();
         log.info("Starting mock system generation...");
 
-        // Delete existing data for clean generation
         cleanExistingData();
 
         List<User> users = createUsers();
@@ -62,13 +61,19 @@ public class DebugService {
         int totalFiles = 0;
         int totalFolders = 0;
 
-        // Create file structure for each user
         for (User user : users) {
             List<FileItem> userFiles = createFileStructureForUser(user);
             userFilesMap.put(user, userFiles);
             
-            long fileCount = userFiles.stream().filter(f -> f.getType() == FileType.FILE).count();
-            long folderCount = userFiles.stream().filter(f -> f.getType() == FileType.FOLDER).count();
+            long fileCount = 0;
+            long folderCount = 0;
+            for (FileItem item : userFiles) {
+                if (item.getType() == FileType.FILE) {
+                    fileCount++;
+                } else if (item.getType() == FileType.FOLDER) {
+                    folderCount++;
+                }
+            }
             
             totalFiles += fileCount;
             totalFolders += folderCount;
@@ -76,7 +81,6 @@ public class DebugService {
             log.info("Created {} files and {} folders for user: {}", fileCount, folderCount, user.getEmail());
         }
 
-        // Create random sharing relationships
         int sharingRelations = createRandomSharing(users, userFilesMap);
         log.info("Created {} sharing relationships", sharingRelations);
 
@@ -97,10 +101,12 @@ public class DebugService {
         filePermissionRepository.deleteAll();
         fileItemRepository.deleteAll();
         
-        // Keep admin user if exists, delete test users
-        List<User> testUsers = userRepository.findAll().stream()
-                .filter(u -> u.getEmail().startsWith("user") && u.getEmail().contains("@test.com"))
-                .toList();
+        List<User> testUsers = new ArrayList<>();
+        for (User u : userRepository.findAll()) {
+            if (u.getEmail().startsWith("user") && u.getEmail().contains("@test.com")) {
+                testUsers.add(u);
+            }
+        }
         userRepository.deleteAll(testUsers);
     }
 
@@ -127,7 +133,6 @@ public class DebugService {
         List<FileItem> allItems = new ArrayList<>();
         Random random = ThreadLocalRandom.current();
 
-        // Create root folders (5-10 per user)
         int numRootFolders = 5 + random.nextInt(6);
         List<FileItem> rootFolders = new ArrayList<>();
 
@@ -141,11 +146,9 @@ public class DebugService {
         int filesPerUser = FILES_PER_USER;
         int filesCreated = 0;
 
-        // Distribute files across folders with some nesting
         for (FileItem rootFolder : rootFolders) {
             int filesInThisFolder = filesPerUser / numRootFolders;
             
-            // Create some subfolders (1-3 per root folder)
             int numSubfolders = 1 + random.nextInt(3);
             List<FileItem> subfolders = new ArrayList<>();
             
@@ -155,18 +158,15 @@ public class DebugService {
                 allItems.add(subfolder);
             }
 
-            // Distribute files between root folder and subfolders
             int filesInRoot = filesInThisFolder / 2;
             int filesInSubfolders = filesInThisFolder - filesInRoot;
 
-            // Files in root folder
             for (int i = 0; i < filesInRoot && filesCreated < filesPerUser; i++) {
                 FileItem file = createFile(user, rootFolder, "File_" + filesCreated);
                 allItems.add(file);
                 filesCreated++;
             }
 
-            // Files in subfolders
             if (!subfolders.isEmpty()) {
                 int filesPerSubfolder = filesInSubfolders / subfolders.size();
                 for (FileItem subfolder : subfolders) {
@@ -179,7 +179,6 @@ public class DebugService {
             }
         }
 
-        // Create remaining files in root level if needed
         while (filesCreated < filesPerUser) {
             FileItem randomFolder = rootFolders.get(random.nextInt(rootFolders.size()));
             FileItem file = createFile(user, randomFolder, "File_" + filesCreated);
@@ -214,7 +213,6 @@ public class DebugService {
         String name = baseName + "_" + UUID.randomUUID().toString().substring(0, 8) + extension;
         long size = 100000 + random.nextInt(10000000); // 100KB to 10MB
 
-        // Create mock storage path (not actual file)
         String storagePath = String.format("mock/%s/%s", owner.getId(), name);
 
         FileItem file = FileItem.builder()
@@ -230,7 +228,6 @@ public class DebugService {
 
         FileItem savedFile = fileItemRepository.save(file);
 
-        // Update user storage
         owner.setStorageUsed(owner.getStorageUsed() + size);
         userRepository.save(owner);
 
@@ -245,30 +242,28 @@ public class DebugService {
             List<FileItem> userFiles = userFilesMap.get(owner);
             if (userFiles.isEmpty()) continue;
 
-            // Calculate 10% of user's files
             int numToShare = (int) Math.ceil(userFiles.size() * SHARING_PERCENTAGE);
 
-            // Randomly select files to share
             Collections.shuffle(userFiles);
             List<FileItem> filesToShare = userFiles.subList(0, Math.min(numToShare, userFiles.size()));
 
             for (FileItem fileItem : filesToShare) {
-                // Share with 1-3 random users
                 int numUsersToShareWith = 1 + random.nextInt(3);
-                List<User> otherUsers = users.stream()
-                        .filter(u -> !u.getId().equals(owner.getId()))
-                        .toList();
+                List<User> otherUsers = new ArrayList<>();
+                for (User u : users) {
+                    if (!u.getId().equals(owner.getId())) {
+                        otherUsers.add(u);
+                    }
+                }
 
                 Collections.shuffle(otherUsers);
                 List<User> shareWithUsers = otherUsers.subList(0, Math.min(numUsersToShareWith, otherUsers.size()));
 
                 for (User shareWith : shareWithUsers) {
-                    // Random permission level
                     PermissionLevel permission = random.nextBoolean() 
                             ? PermissionLevel.VIEW 
                             : PermissionLevel.EDIT;
 
-                    // Check if permission already exists
                     if (!filePermissionRepository.existsByFileItemAndUser(fileItem, shareWith)) {
                         FilePermission filePermission = FilePermission.builder()
                                 .fileItem(fileItem)

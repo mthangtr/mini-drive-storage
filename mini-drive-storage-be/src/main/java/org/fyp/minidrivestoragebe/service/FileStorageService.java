@@ -84,33 +84,4 @@ public class FileStorageService {
             throw new FileStorageException("File not found: " + storagePath, ex);
         }
     }
-
-    public void deleteFile(String storagePath) {
-        try {
-            Path filePath = this.fileStorageLocation.resolve(storagePath).normalize();
-            Files.deleteIfExists(filePath);
-            log.debug("Deleted file: {}", storagePath);
-        } catch (IOException ex) {
-            log.error("Could not delete file: {}", storagePath, ex);
-        }
-    }
-
-    public long getFileSize(String storagePath) {
-        try {
-            Path filePath = this.fileStorageLocation.resolve(storagePath).normalize();
-            return Files.size(filePath);
-        } catch (IOException ex) {
-            log.error("Could not get file size: {}", storagePath, ex);
-            return 0;
-        }
-    }
-
-    public boolean fileExists(String storagePath) {
-        try {
-            Path filePath = this.fileStorageLocation.resolve(storagePath).normalize();
-            return Files.exists(filePath);
-        } catch (Exception ex) {
-            return false;
-        }
-    }
 }

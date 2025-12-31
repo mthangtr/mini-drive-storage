@@ -80,7 +80,7 @@ public class FileService {
                 uploadedFiles.add(FileItemResponse.from(fileItem, true));
                 totalSize += fileSize;
 
-                log.info("File uploaded: {} by user: {}", fileItem.getName(), user.getEmail());
+                log.info("File uploaded: {}", fileItem.getName());
             } catch (Exception e) {
                 log.error("Failed to upload file: {}", file.getOriginalFilename(), e);
             }
@@ -130,7 +130,7 @@ public class FileService {
                 .build();
 
         folder = fileItemRepository.save(folder);
-        log.info("Folder created: {} by user: {}", folder.getName(), user.getEmail());
+        log.info("Folder created: {}", folder.getName());
 
         return FileItemResponse.from(folder, true);
     }
@@ -152,30 +152,32 @@ public class FileService {
             items = fileItemRepository.findByOwnerAndParentIsNullAndDeletedFalse(user);
         }
 
-        if (request.getType() != null) {
-            items = items.stream()
-                    .filter(item -> item.getType() == request.getType())
-                    .collect(Collectors.toList());
+        List<FileItem> filteredItems = new ArrayList<>();
+        for (FileItem item : items) {
+            boolean matches = true;
+            
+            if (request.getType() != null && item.getType() != request.getType()) {
+                matches = false;
+            }
+            if (request.getFromSize() != null && item.getSize() < request.getFromSize()) {
+                matches = false;
+            }
+            if (request.getToSize() != null && item.getSize() > request.getToSize()) {
+                matches = false;
+            }
+            
+            if (matches) {
+                filteredItems.add(item);
+            }
         }
+        items = filteredItems;
 
-        if (request.getFromSize() != null) {
-            items = items.stream()
-                    .filter(item -> item.getSize() >= request.getFromSize())
-                    .collect(Collectors.toList());
+        List<FileItemResponse> result = new ArrayList<>();
+        for (FileItem item : items) {
+            boolean canEdit = canEdit(item, user);
+            result.add(FileItemResponse.from(item, canEdit));
         }
-
-        if (request.getToSize() != null) {
-            items = items.stream()
-                    .filter(item -> item.getSize() <= request.getToSize())
-                    .collect(Collectors.toList());
-        }
-
-        return items.stream()
-                .map(item -> {
-                    boolean canEdit = canEdit(item, user);
-                    return FileItemResponse.from(item, canEdit);
-                })
-                .collect(Collectors.toList());
+        return result;
     }
 
     @Transactional(readOnly = true)
@@ -217,10 +219,9 @@ public class FileService {
         fileItem.setDeletedAt(LocalDateTime.now());
         fileItemRepository.save(fileItem);
 
-        log.info("File/Folder soft deleted: {} by user: {}", fileItem.getName(), user.getEmail());
+        log.info("Deleted: {}", fileItem.getName());
     }
 
-    // Tìm kiếm trong cả file của mình và file được chia sẻ
     private List<FileItem> searchFiles(FileListRequest request, User user) {
         String query = "%" + request.getQ().toLowerCase() + "%";
         
@@ -228,11 +229,13 @@ public class FileService {
                 user, request.getQ());
 
         List<FilePermission> permissions = filePermissionRepository.findByUser(user);
-        List<FileItem> sharedFiles = permissions.stream()
-                .map(FilePermission::getFileItem)
-                .filter(item -> !item.getDeleted())
-                .filter(item -> item.getName().toLowerCase().contains(request.getQ().toLowerCase()))
-                .collect(Collectors.toList());
+        List<FileItem> sharedFiles = new ArrayList<>();
+        for (FilePermission perm : permissions) {
+            FileItem item = perm.getFileItem();
+            if (!item.getDeleted() && item.getName().toLowerCase().contains(request.getQ().toLowerCase())) {
+                sharedFiles.add(item);
+            }
+        }
 
         List<FileItem> allFiles = new ArrayList<>(ownedFiles);
         for (FileItem sharedFile : sharedFiles) {
@@ -314,7 +317,7 @@ public class FileService {
             existingPermission.setPermissionLevel(request.getPermission());
             existingPermission = filePermissionRepository.save(existingPermission);
             
-            log.info("Updated permission for {} on {} to {}", recipient.getEmail(), fileItem.getName(), request.getPermission());
+            log.info("Permission updated for {}", recipient.getEmail());
         } else {
             existingPermission = FilePermission.builder()
                     .fileItem(fileItem)
@@ -323,10 +326,9 @@ public class FileService {
                     .build();
             existingPermission = filePermissionRepository.save(existingPermission);
             
-            log.info("Created permission for {} on {} with {}", recipient.getEmail(), fileItem.getName(), request.getPermission());
+            log.info("Permission created for {}", recipient.getEmail());
         }
         
-        // Nếu là folder thì apply permission cho toàn bộ children
         if (fileItem.getType() == FileType.FOLDER) {
             applyPermissionsRecursively(fileItem, recipient, request.getPermission());
         }
@@ -381,19 +383,17 @@ public class FileService {
         
         List<FilePermission> permissions = filePermissionRepository.findByUser(user);
         
-        return permissions.stream()
-                .map(permission -> {
-                    FileItem fileItem = permission.getFileItem();
-                    if (!fileItem.getDeleted()) {
-                        FileItemResponse response = FileItemResponse.from(fileItem, false);
-                        response.setShared(true);
-                        response.setPermissionLevel(permission.getPermissionLevel());
-                        return response;
-                    }
-                    return null;
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+        List<FileItemResponse> responses = new ArrayList<>();
+        for (FilePermission permission : permissions) {
+            FileItem fileItem = permission.getFileItem();
+            if (!fileItem.getDeleted()) {
+                FileItemResponse response = FileItemResponse.from(fileItem, false);
+                response.setShared(true);
+                response.setPermissionLevel(permission.getPermissionLevel());
+                responses.add(response);
+            }
+        }
+        return responses;
     }
     
     @Transactional(readOnly = true)
@@ -408,16 +408,19 @@ public class FileService {
         
         List<FilePermission> permissions = filePermissionRepository.findByFileItemId(fileId);
         
-        return permissions.stream()
-                .map(permission -> ShareFileResponse.builder()
-                        .id(permission.getId())
-                        .fileId(fileItem.getId())
-                        .fileName(fileItem.getName())
-                        .sharedWithEmail(permission.getUser().getEmail())
-                        .permission(permission.getPermissionLevel())
-                        .sharedAt(permission.getSharedAt())
-                        .build())
-                .collect(Collectors.toList());
+        List<ShareFileResponse> responses = new ArrayList<>();
+        for (FilePermission permission : permissions) {
+            ShareFileResponse response = ShareFileResponse.builder()
+                    .id(permission.getId())
+                    .fileId(fileItem.getId())
+                    .fileName(fileItem.getName())
+                    .sharedWithEmail(permission.getUser().getEmail())
+                    .permission(permission.getPermissionLevel())
+                    .sharedAt(permission.getSharedAt())
+                    .build();
+            responses.add(response);
+        }
+        return responses;
     }
     
     @Transactional
@@ -442,7 +445,7 @@ public class FileService {
             removePermissionsRecursively(fileItem, recipient);
         }
         
-        log.info("Removed share for {} on {}", recipientEmail, fileItem.getName());
+        log.info("Share removed");
     }
     
     private void removePermissionsRecursively(FileItem folder, User recipient) {

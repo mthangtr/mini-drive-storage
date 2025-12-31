@@ -26,20 +26,4 @@ public class EmailService {
         
         log.info("Email sent successfully to {}", recipientEmail);
     }
-    
-    @Async
-    public void sendEmail(String to, String subject, String body) {
-        log.info("=== MOCK EMAIL ===");
-        log.info("To: {}", to);
-        log.info("Subject: {}", subject);
-        log.info("Body: {}", body);
-        log.info("==================");
-        
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("Email sending interrupted", e);
-        }
-    }
 }

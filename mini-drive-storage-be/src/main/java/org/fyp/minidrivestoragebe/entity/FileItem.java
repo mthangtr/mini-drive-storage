@@ -37,14 +37,14 @@ public class FileItem {
     private FileType type;
     
     @Column(length = 500)
-    private String storagePath; // Path on disk (null for folders)
+    private String storagePath;
     
     @Column(length = 100)
-    private String mimeType; // MIME type for files
+    private String mimeType;
     
     @Column(nullable = false)
     @Builder.Default
-    private Long size = 0L; // Size in bytes (0 for folders)
+    private Long size = 0L;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
@@ -52,7 +52,7 @@ public class FileItem {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
-    private FileItem parent; // null = root level
+    private FileItem parent;
     
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
